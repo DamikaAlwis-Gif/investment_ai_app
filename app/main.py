@@ -1,0 +1,85 @@
+from graph.workflow import create_workflow
+import streamlit as st
+import uuid
+from dotenv import load_dotenv
+from graph.errors.finance_exceptions import FinanceError
+
+def main():
+
+    # Load environment variables from .env file
+    load_dotenv()
+    app = create_workflow()
+    # Set the page configuration
+    st.set_page_config(page_title="Tec Wire AI", page_icon="🤖",
+                       layout="centered", initial_sidebar_state="expanded")
+    st.header('Tec Wire AI 🤖 📰')
+    st.subheader('Your Daily Tec News Companion 😎')
+
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+
+    # Sidebar with New Chat button and session ID
+    with st.sidebar:
+        session_id_container = st.empty()
+        # Display the session ID
+        session_id_container.write(
+            f"**Session ID:** {st.session_state['session_id']}")
+
+        # Add a button to start a new chat
+        if st.button("New Chat"):
+            # Reset chat history and generate a new session ID
+            st.session_state.messages = []
+            st.session_state.session_id = str(uuid.uuid4())
+            session_id_container.write(
+                f"**Session ID:** {st.session_state['session_id']}")
+            st.success("New chat started!")
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Message Tec Wire AI..."):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        try:
+            typing_indicator = st.empty()
+            typing_indicator.write("Tec Wire is processing your request...")
+
+            # Configuration for app invocation
+            config = {"configurable": {
+                "thread_id": st.session_state.session_id}}
+            response = app.invoke({"input": prompt}, config=config)
+            answer = response["messages"][-1].content
+            print(response)
+            print(answer)
+
+            typing_indicator.empty()  # Remove the typing indicator when done
+
+            with st.chat_message("ai"):
+                # Display the AI's answer
+                st.markdown(answer)
+
+            # Add AI response to chat history
+            st.session_state.messages.append({"role": "ai", "content": answer})
+        except FinanceError as e:
+            typing_indicator.empty()
+            with st.chat_message("ai"):
+                st.markdown(e.chat_message())
+                
+               
+        except Exception as e:
+            typing_indicator.empty()  # Ensure the typing indicator is cleared
+            st.error("An error occurred while processing your request.")
+            st.sidebar.write("Error details:", str(e))
+
+
+if __name__ == "__main__":
+    main()
