@@ -5,6 +5,7 @@ from langchain_groq import ChatGroq
 # from langchain_google_genai import GoogleGenerativeAI
 # from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from langchain_google_genai import GoogleGenerativeAI
 
 def get_classify_question_chain():
 
@@ -86,7 +87,10 @@ def get_extract_context_chain():
 
 def get_handle_stock_specific_chain():
 
-  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+                           temperature=0,)
+
   prompt = PromptTemplate(
       template="""
       Provide a detailed analysis for {symbol} based on this data:
@@ -97,6 +101,7 @@ def get_handle_stock_specific_chain():
       2. Key metrics interpretation
       3. Notable strengths/weaknesses
       4. Investment considerations
+      U may use graphs, tables to preset the information.
       """,
       input_variables=["symbol", "analysis"]
     )
@@ -104,7 +109,9 @@ def get_handle_stock_specific_chain():
 
 def get_handle_comparison_chain():
  
-  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+                           temperature=0,)
   prompt = PromptTemplate(
       template="""
       Compare these stocks based on the following data:
@@ -114,6 +121,7 @@ def get_handle_comparison_chain():
         1. Head-to-head metric comparison
         2. Relative strengths/weaknesses
         3. Investment recommendation
+      U may use graphs, tables to preset the information.  
       """,
       input_variables=["comparison"]
   )
@@ -137,3 +145,30 @@ def get_handle_technical_chain():
       input_variables=["analysis", "symbol"],
   )
   return prompt | llm | StrOutputParser()
+
+
+def get_formulated_query_chain():
+
+  contextualize_q_system_prompt = """
+  You are an AI assistant that can formulate a standalone question 
+  when given chat history, chat summary and the latest user question 
+  which might reference context in the chat history and summary.
+  Formulate a standalone question 
+  which can be understood without the chat history. Do NOT answer the question, 
+  just reformulate it if needed and otherwise return it as is.
+  Output only the standalone question or the original if no reformulation is needed.
+  """
+
+  prompt_genrate_q = ChatPromptTemplate(
+      [
+          ("system", contextualize_q_system_prompt),
+          ("human", "User question: {input} \n\n Chat summary: {summary}"),
+          MessagesPlaceholder("chat_history"),
+      ]
+  )
+
+  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+                           temperature=0,)
+
+  chain = prompt_genrate_q | llm | StrOutputParser()
+  return chain

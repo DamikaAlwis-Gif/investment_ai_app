@@ -33,3 +33,5 @@ class GraphState(TypedDict):
     # stocks: Sequence[str]
     # analysis_results: Dict
     context: Dict
+    summary : str
+    formatted_query : str

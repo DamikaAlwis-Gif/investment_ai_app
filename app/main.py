@@ -57,6 +57,7 @@ def main():
             config = {"configurable": {
                 "thread_id": st.session_state.session_id}}
             response = app.invoke({"input": prompt}, config=config)
+            
             answer = response["messages"][-1].content
             print(response)
             print(answer)

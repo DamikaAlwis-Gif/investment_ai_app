@@ -1,21 +1,25 @@
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from .graph_state import GraphState
-from .nodes import extract_context, handle_comparison, handle_stock_specific, handle_technical
+from .nodes import extract_context, handle_comparison, handle_stock_specific, handle_technical, summarize_conversation, formulate_query
 from .edges import classify_question
 
 memory = MemorySaver()
 
 workflow = StateGraph(GraphState)
 
-
+workflow.add_node("formulate_query", formulate_query)
 workflow.add_node("extract_context", extract_context)
 workflow.add_node("handle_comparison", handle_comparison)
 workflow.add_node("handle_technical", handle_technical)
 workflow.add_node("handle_stock_specific", handle_stock_specific)
+workflow.add_node("summarize_conversation", summarize_conversation)
 
 workflow.add_edge(
-  START, "extract_context"
+  START, "formulate_query"
+)
+workflow.add_edge(
+  "formulate_query", "extract_context"
 )
 
 workflow.add_conditional_edges(
@@ -27,9 +31,10 @@ workflow.add_conditional_edges(
     "technical_analysis": "handle_technical"
   }
 )
-workflow.add_edge("handle_stock_specific", END)
-workflow.add_edge("handle_technical", END)
-workflow.add_edge("handle_comparison", END)
+workflow.add_edge("handle_stock_specific","summarize_conversation" )
+workflow.add_edge("handle_technical","summarize_conversation" )
+workflow.add_edge("handle_comparison","summarize_conversation" )
+workflow.add_edge("summarize_conversation",END)
 
 app = workflow.compile(checkpointer=memory)
 
