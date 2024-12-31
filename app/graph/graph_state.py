@@ -31,5 +31,8 @@ class GraphState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     # question_type: QuestionType
     # stocks: Sequence[str]
-    # analysis_results: Dict
+    analysis_results: Dict
     context: Dict
+    summary : str
+    formatted_query : str
+    vector_store_documents: Sequence[Document]

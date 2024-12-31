@@ -2,48 +2,77 @@ from typing import TypedDict, List, Dict, Any, Literal
 import yfinance as yf
 import pandas as pd
 from .errors.finance_exceptions import InvalidStockSymbolError
+from .graph_state import GraphState
+from .errors.finance_exceptions import MissingStockSymbolError, InsufficientStockSymbolsError
 # Tools for different analysis types
 
-def analyze_single_stock(symbol: str) -> Dict:
+
+def retrieve_single_stock_data(state: GraphState):
     """Comprehensive analysis of a single stock"""
     
+    symbol = state["context"]["symbols"][0] if state["context"]["symbols"] else None
+    if not symbol:
+        raise MissingStockSymbolError()
+
+    period = state["context"].get("period", "1mo")
+    if not period:
+        period = "1mo"
+
     stock = yf.Ticker(symbol)
-    hist = stock.history(period="1mo")
+    hist = stock.history(period)
     if hist.empty :
         raise InvalidStockSymbolError(symbol)
-    
+      
     return {
-        "current_price": stock.info.get("currentPrice"),
-        "price_change": hist["Close"].pct_change().mean(),
-        "volume": stock.info.get("volume"),
-        "pe_ratio": stock.info.get("forwardPE"),
-        "market_cap": stock.info.get("marketCap"),
-        "52w_high": stock.info.get("fiftyTwoWeekHigh"),
-        "52w_low": stock.info.get("fiftyTwoWeekLow")
+        "analysis_results": {
+            "historical_data": hist.to_dict(orient="records"),
+            "stock_info": stock.info
+        }
     }
 
 
-def compare_stocks(symbols: List[str]) -> Dict:
+def retrieve_multi_stocks_data(state: GraphState):
     """Compare multiple stocks"""
+
+    symbols = state["context"]["symbols"]
     results = {}
+
+    if not symbols or len(symbols) < 2:
+        raise InsufficientStockSymbolsError()
+
+    period = state["context"].get("period", "1mo")
+    if not period:
+        period = "1mo"
+
     for symbol in symbols:
         stock = yf.Ticker(symbol)
-        hist = stock.history(period="1mo")
+        hist = stock.history(period)
         if hist.empty:
             raise InvalidStockSymbolError(symbol)
         results[symbol] = {
-            "current_price": stock.info.get("currentPrice"),
-            "monthly_return": hist["Close"].pct_change().mean(),
-            "market_cap": stock.info.get("marketCap"),
-            "pe_ratio": stock.info.get("forwardPE")
+
+            "historical_data": hist.to_dict(orient="records"),
+            "stock_info": stock.info
         }
-    return results
+
+    return {
+        "analysis_results": results
+    }
 
 
-def technical_analysis(symbol: str) -> Dict:
+def retrive_technical_analysis_stock_data(state: GraphState):
     """Perform technical analysis on a stock"""
+
+    symbol = state["context"]["symbols"][0] if state["context"]["symbols"] else None
+    if not symbol:
+        raise MissingStockSymbolError()
+
+    period = state["context"].get("period", "3mo")
+    if not period:
+        period = "3mo"
+
     stock = yf.Ticker(symbol)
-    hist = stock.history(period="3mo")
+    hist = stock.history(period)
     if hist.empty:
         raise InvalidStockSymbolError(symbol)
     # Calculate technical indicators
@@ -53,11 +82,16 @@ def technical_analysis(symbol: str) -> Dict:
     df['RSI'] = calculate_rsi(df['Close'])
     
     return {
-        "trend": "bullish" if df['SMA_20'].iloc[-1] > df['SMA_50'].iloc[-1] else "bearish",
-        "rsi": df['RSI'].iloc[-1],
-        "support": df['Low'].min(),
-        "resistance": df['High'].max(),
-        "volume_trend": "increasing" if df['Volume'].pct_change().mean() > 0 else "decreasing"
+        "analysis_results": {
+
+            "historical_data": hist.to_dict(orient="records"),
+            "stock_info": stock.info,
+            "trend": "bullish" if df['SMA_20'].iloc[-1] > df['SMA_50'].iloc[-1] else "bearish",
+            "rsi": df['RSI'].iloc[-1],
+            "support": df['Low'].min(),
+            "resistance": df['High'].max(),
+            "volume_trend": "increasing" if df['Volume'].pct_change().mean() > 0 else "decreasing"
+        }
     }
 
 def calculate_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
@@ -89,3 +123,28 @@ def calculate_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
     rsi = 100 - (100 / (1 + rs))
     
     return rsi
+
+
+def analyze_sector_performance(sector: str) -> Dict:
+    """Analyze performance of a market sector"""
+    # You would typically use a sector ETF as proxy
+    sector_etfs = {
+        "technology": "XLK",
+        "healthcare": "XLV",
+        "finance": "XLF",
+        "energy": "XLE",
+        "consumer": "XLY"
+    }
+
+    if sector.lower() in sector_etfs:
+        etf = yf.Ticker(sector_etfs[sector.lower()])
+        hist = etf.history(period="3mo")
+
+        return {
+            "current_price": etf.info.get("currentPrice"),
+            "monthly_return": hist["Close"].pct_change().mean() * 100,
+            "volume_trend": hist["Volume"].pct_change().mean() * 100,
+            "top_holdings": etf.info.get("holdings", [])[:5],
+            "sector_pe": etf.info.get("forwardPE")
+        }
+    return {"error": "Sector not found"}
