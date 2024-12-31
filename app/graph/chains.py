@@ -16,7 +16,7 @@ def get_classify_question_chain():
         "stock_specific",
         # "market_trend",
         # "investment_strategy",
-        # "news_based",
+        "news_based",
         "comparison",
         "technical_analysis"
     ] = Field(
@@ -24,16 +24,18 @@ def get_classify_question_chain():
       description=(
        
           """
-          Question category (stock_specific, market_trend, investment_strategy, news_based, comparison, technical_analysis)
+          Question category (stock_specific, news_based, comparison, technical_analysis)
           """
       )
     )
 
   system_message ='''
-        Classify the following investment-related question into one of these categories:
+        Your are question classification expert. You shoulf classify 
+        the following investment-related question into one of these categories:
         - stock_specific: Questions about a single stock
         - comparison: Questions comparing multiple stocks
         - technical_analysis: Questions about technical indicators
+        - news_based: Questions about news
         Respond with only the category name.
   '''
   question_classify_prompt = ChatPromptTemplate.from_messages(
@@ -59,7 +61,8 @@ def get_extract_context_chain():
     )
     metrics : list[str] = Field(
         description="Requested metrics. Empty string if no metrics are requested."
-    )
+    ),
+    
 
   parser = JsonOutputParser(pydantic_object=Context)
 
@@ -87,44 +90,69 @@ def get_extract_context_chain():
 
 def get_handle_stock_specific_chain():
 
-  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
-  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
-                           temperature=0,)
+  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.5)
+  # llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+  #                          temperature=0.5,)
 
+  # prompt = PromptTemplate(
+  #     template="""
+  #     Provide a detailed analysis for {symbol} based on this data:
+  #     {analysis}
+
+  #     Include:
+  #     1. Current market position
+  #     2. Key metrics interpretation
+  #     3. Notable strengths/weaknesses
+  #     4. Investment considerations
+  #     U may use graphs, tables to preset the information.
+  #     """,
+  #     input_variables=["symbol", "analysis"]
+  #   )
+  
   prompt = PromptTemplate(
-      template="""
-      Provide a detailed analysis for {symbol} based on this data:
-      {analysis}
+    template="""
+    You are a financial data analyst expert.
+    Based on the user's question: {question}
+    Provide a detailed and insightful answer, utilizing the following data:
+    - Historical Data: {historical_data}
+    - Stock Information: {stock_info}
+    Use a professional tone, and include graphs or tables where applicable to present the information clearly.
+    """,
+    input_variables=["question", "historical_data", "stock_info"]
+  )
 
-      Include:
-      1. Current market position
-      2. Key metrics interpretation
-      3. Notable strengths/weaknesses
-      4. Investment considerations
-      U may use graphs, tables to preset the information.
-      """,
-      input_variables=["symbol", "analysis"]
-    )
+
   return prompt | llm | StrOutputParser()
 
 def get_handle_comparison_chain():
  
   # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
-  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+  llm = GoogleGenerativeAI(model="c",
                            temperature=0,)
+  # prompt = PromptTemplate(
+  #     template="""
+  #     Compare these stocks based on the following data:
+  #       {comparison}
+        
+  #       Include:
+  #       1. Head-to-head metric comparison
+  #       2. Relative strengths/weaknesses
+  #       3. Investment recommendation
+  #     U may use graphs, tables to preset the information.  
+  #     """,
+  #     input_variables=["comparison"]
+  # )
   prompt = PromptTemplate(
       template="""
-      Compare these stocks based on the following data:
-        {comparison}
-        
-        Include:
-        1. Head-to-head metric comparison
-        2. Relative strengths/weaknesses
-        3. Investment recommendation
-      U may use graphs, tables to preset the information.  
-      """,
-      input_variables=["comparison"]
+    You are a financial data analyst expert.
+    Based on the user's question: {question}
+    Provide a detailed and insightful answer, utilizing the following data:
+    Data :  {data}
+    Use a professional tone, and include graphs or tables where applicable to present the information clearly.
+    """,
+      input_variables=["question", "historical_data", "stock_info"]
   )
+  
   return prompt | llm | StrOutputParser()
 
 def get_handle_technical_chain(): 
@@ -172,3 +200,36 @@ def get_formulated_query_chain():
 
   chain = prompt_genrate_q | llm | StrOutputParser()
   return chain
+
+
+def get_rag_chain():
+
+  system = """
+    You are an assistant for question-answering tasks related to news. 
+    Use the following pieces of retrieved context to answer the question. 
+    If you don't know the answer, just say that you don't know. 
+    Please attach the URL of the relevant news articles or sources to your answer. 
+    If the original user query is not clear, use the formulated query to answer the question. 
+   
+    When providing the answer:
+    - First, answer the question.
+    - Lastly, provide the sources in the following format:
+    Sources:
+    <The title> 
+    <The URL or citation goes here>
+  """
+
+  rag_prompt = ChatPromptTemplate.from_messages(
+      [
+          ("system", system),
+          ("human",
+           "Context: {context} \n\nUser question: {input} \n\nFormulated question: {formatted_query}")
+      ]
+  )
+
+  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+                                 temperature=0.5,)
+
+  rag_chain = rag_prompt | llm | StrOutputParser()
+  return rag_chain

@@ -3,17 +3,37 @@ import streamlit as st
 import uuid
 from dotenv import load_dotenv
 from graph.errors.finance_exceptions import FinanceError
-
+from utils.process_json_files import get_json_files_list, load_file_content_to_vector_store, load_processed_files, save_processed_file
+from config.constants import JSON_FILES_DIRECTORY, PROCESSED_FILES_PATH
+import logging
 def main():
 
     # Load environment variables from .env file
     load_dotenv()
+    json_files = get_json_files_list(JSON_FILES_DIRECTORY)
+    if not json_files:
+        logging.info(f"No JSON files found in {JSON_FILES_DIRECTORY}.")
+
+    # get the list of processed files
+    processed_files = load_processed_files(PROCESSED_FILES_PATH)
+
+    for json_file in json_files:
+        if json_file not in processed_files:
+            load_file_content_to_vector_store(json_file)
+            save_processed_file(PROCESSED_FILES_PATH, json_file)
+
+
     app = create_workflow()
     # Set the page configuration
-    st.set_page_config(page_title="Tec Wire AI", page_icon="🤖",
-                       layout="centered", initial_sidebar_state="expanded")
-    st.header('Tec Wire AI 🤖 📰')
-    st.subheader('Your Daily Tec News Companion 😎')
+    st.set_page_config(
+        page_title="MarketMinds AI",
+        page_icon="📈",
+        layout="centered",
+        initial_sidebar_state="expanded"
+    )
+
+    st.header('MarketMinds AI 📈 🤖')
+    st.subheader('Your Personalized Financial News & Stock Trends Companion 💰')
 
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -59,8 +79,8 @@ def main():
             response = app.invoke({"input": prompt}, config=config)
             
             answer = response["messages"][-1].content
-            print(response)
-            print(answer)
+            # print(response)
+            # print(answer)
 
             typing_indicator.empty()  # Remove the typing indicator when done
 

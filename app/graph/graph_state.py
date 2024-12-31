@@ -35,3 +35,4 @@ class GraphState(TypedDict):
     context: Dict
     summary : str
     formatted_query : str
+    vector_store_documents: Sequence[Document]
