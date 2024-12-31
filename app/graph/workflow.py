@@ -40,7 +40,8 @@ workflow.add_conditional_edges(
   }
 )
 
-workflow.add_edge("retreive_news_data", "news_analysis")
+workflow.add_edge("retreive_news_data", "retrieve_multi_stocks_data")
+workflow.add_edge("retrieve_multi_stocks_data","news_analysis")
 workflow.add_edge("news_analysis", "summarize_conversation")
 workflow.add_edge("retrieve_multi_stocks_data", "stock_analysis")
 workflow.add_edge("retrive_technical_analysis_stock_data", "stock_analysis")
