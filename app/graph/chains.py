@@ -141,12 +141,14 @@ def get_formulated_query_chain():
 def get_rag_chain():
 
   system = """
-    You are an assistant for question-answering tasks related to news. 
-    Use the following pieces of retrieved context to answer the question. 
+    You are an financial domain expert for question-answering tasks. 
+    Use the following pieces of retrieved context to answer the question.
+    The Context may include stock information and related news information. 
     If you don't know the answer, just say that you don't know. 
     Please attach the URL of the relevant news articles or sources to your answer. 
     If the original user query is not clear, use the formulated query to answer the question. 
-   
+    Give answers based on the context only.
+    
     When providing the answer:
     - First, answer the question.
     - Lastly, provide the sources in the following format:

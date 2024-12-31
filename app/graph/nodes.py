@@ -118,7 +118,7 @@ def retreive(state: GraphState):
 def news_analysis(state: GraphState):
   # get vector store documents
   vector_store_documents = state.get("vector_store_documents", [])
-
+  stock_analysis_results = state.get("stock_analysis_results", [])
   rag_chain = get_rag_chain()
 
   # fucntion to call rag chain invoke
@@ -127,7 +127,10 @@ def news_analysis(state: GraphState):
         {
             "input": state["input"],
             "formatted_query": state["formatted_query"],
-            "context": vector_store_documents
+            "context": {
+              "stock_data": stock_analysis_results,
+              "news_data": vector_store_documents
+            }
         }
   )
    
