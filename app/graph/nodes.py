@@ -25,8 +25,12 @@ def extract_context(state: GraphState):
 def stock_analysis(state: GraphState):
   
   chain = get_handle_stock_analysis_chain()
+  print({
+        "question": state["formatted_query"],
+        "data": state["analysis_results"]
+        })
   response = chain.invoke({
-        "question": state["input"],
+        "question": state["formatted_query"],
         "data": state["analysis_results"]
     })
   print(response)
@@ -52,6 +56,7 @@ def summarize_conversation(state: GraphState):
   else:
     summary_message = "Create a summary of the conversation above."
   messages = state["messages"] + [HumanMessage(summary_message)]
+  print(messages)
   chain = llm | StrOutputParser()
   summary = chain.invoke(messages)
 

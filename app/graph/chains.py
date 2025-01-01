@@ -9,7 +9,8 @@ from langchain_google_genai import GoogleGenerativeAI
 
 def get_classify_question_chain():
 
-  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
+  # llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
+  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
   class QuestionCategory(BaseModel):
 
     category: Literal[
@@ -50,7 +51,7 @@ def get_classify_question_chain():
 
 def get_extract_context_chain():
 
-  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
+  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
   
   class Context(BaseModel):
     symbols : list[str] = Field(
@@ -93,15 +94,15 @@ def get_extract_context_chain():
 
 def get_handle_stock_analysis_chain():
 
-  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.5)
-  # llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
-  #                          temperature=0.5)
+  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.5)
+  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+                           temperature=0.2)
   prompt = PromptTemplate(
       template="""
     You are a financial data analyst expert.
     Based on the user's question: {question}
-    Provide a detailed and insightful answer, utilizing the following data:
-    Data :  {data}
+    Provide a detailed and insightful answer, utilizing the following context:
+    context :  {data}
     Use a professional tone and use tables if applicable to present information clearly.
     """,
     input_variables=["question", "data"]
