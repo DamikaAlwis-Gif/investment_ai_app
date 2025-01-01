@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from graph.errors.finance_exceptions import FinanceError
 from utils.process_json_files import get_json_files_list, load_file_content_to_vector_store, load_processed_files, save_processed_file
 from config.constants import JSON_FILES_DIRECTORY, PROCESSED_FILES_PATH
+from config.constants import BOT_NAME, HEADER_TEXT, SUB_HEADER_TEXT
 import logging
 def main():
 
@@ -25,15 +26,16 @@ def main():
 
     app = create_workflow()
     # Set the page configuration
+     
     st.set_page_config(
-        page_title="MarketMinds AI",
+        page_title=BOT_NAME,
         page_icon="📈",
         layout="centered",
         initial_sidebar_state="expanded"
     )
 
-    st.header('MarketMinds AI 📈 🤖')
-    st.subheader('Your Personalized Financial News & Stock Trends Companion 💰')
+    st.header(HEADER_TEXT)
+    st.subheader(SUB_HEADER_TEXT)
 
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -62,7 +64,7 @@ def main():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Message Tec Wire AI..."):
+    if prompt := st.chat_input(f"Message {BOT_NAME}..."):
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         # Display user message in chat message container
@@ -71,11 +73,15 @@ def main():
 
         try:
             typing_indicator = st.empty()
-            typing_indicator.write("Tec Wire is processing your request...")
+            typing_indicator.write(f"{BOT_NAME} is processing your request...")
 
             # Configuration for app invocation
-            config = {"configurable": {
-                "thread_id": st.session_state.session_id}}
+            config = {
+                "configurable": {
+                                    "thread_id": st.session_state.session_id
+                                }
+                    }
+            
             response = app.invoke({"input": prompt}, config=config)
             
             answer = response["messages"][-1].content
@@ -93,12 +99,16 @@ def main():
         except FinanceError as e:
             typing_indicator.empty()
             with st.chat_message("ai"):
-                st.markdown(e.chat_message())
-                
+                answer = e.chat_message()
+                st.markdown(answer)
+            st.session_state.messages.append({"role": "ai", "content": answer})
                
         except Exception as e:
             typing_indicator.empty()  # Ensure the typing indicator is cleared
-            st.error("An error occurred while processing your request.")
+            answer = "An error occurred while processing your request."
+            st.error(answer)
+            st.session_state.messages.append({"role": "ai", "content": answer})
+
             st.sidebar.write("Error details:", str(e))
 
 

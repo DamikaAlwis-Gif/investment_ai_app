@@ -8,7 +8,7 @@ def classify_question(state : GraphState):
   
   response = classify_chain.invoke(
     {
-      "question": state["input"]
+        "question": state["formatted_query"]
     }
   )
   question_category = response.category
