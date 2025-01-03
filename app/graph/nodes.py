@@ -1,22 +1,26 @@
 from .graph_state import GraphState
 from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
-from .chains import get_extract_context_chain
+from .chains import get_extract_context_chain, get_classify_question_chain
 from .chains import get_formulated_query_chain, get_rag_chain, get_handle_stock_analysis_chain
 from .errors.finance_exceptions import MissingStockSymbolError, InsufficientStockSymbolsError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from utils.retriver import get_retriever
 from utils.vector_store import get_vector_store
+from langchain_core.documents import Document
 
 def extract_context(state: GraphState):
     """Extract relevant context like stock symbols from the question"""
 
     print("Extracting context...")
+
     context_chain = get_extract_context_chain()
     context = context_chain.invoke({
         "question": state["formatted_query"]
     })
+
     print("Context extracted:", context)
+
     return {
         "context": context,
     }
@@ -25,15 +29,15 @@ def extract_context(state: GraphState):
 def stock_analysis(state: GraphState):
   
   chain = get_handle_stock_analysis_chain()
-  print({
-        "question": state["formatted_query"],
-        "data": state["analysis_results"]
-        })
+
+  print("Stock analysis...")
+
   response = chain.invoke({
-        "question": state["formatted_query"],
+        "formulated_question": state["formatted_query"],
+        "original_question" : state["input"],
         "data": state["analysis_results"]
     })
-  print(response)
+  
   return {
         "messages": [AIMessage(response)]
     }
@@ -56,9 +60,10 @@ def summarize_conversation(state: GraphState):
   else:
     summary_message = "Create a summary of the conversation above."
   messages = state["messages"] + [HumanMessage(summary_message)]
-  print(messages)
+  # print(messages)
   chain = llm | StrOutputParser()
   summary = chain.invoke(messages)
+  # print(summary)
 
   delete_messages = [RemoveMessage(id=m.id)
                      for m in state["messages"][:-4]]
@@ -110,14 +115,24 @@ def retreive(state: GraphState):
 
   documents = vectorstore.as_retriever(
      search_type="mmr",
-     search_kwargs={'k': 5, 'fetch_k': 10}
+     search_kwargs={'k': 4, 'fetch_k': 10}
   ).invoke(
      question
   )
   print(len(documents))
+  vector_store_documents = []
+  for doc in documents:
+    page_content = doc.page_content
+    metadata = doc.metadata
+    new_metadata = {key: value for key,
+                    value in metadata.items() if key != "embedding"}
+    
+    vector_store_documents.append(Document(page_content= page_content, metadata = new_metadata))
 
-  
-  return {"vector_store_documents": documents}
+
+
+  print(vector_store_documents)
+  return {"vector_store_documents": vector_store_documents}
 
 
 def news_analysis(state: GraphState):
@@ -125,7 +140,7 @@ def news_analysis(state: GraphState):
   vector_store_documents = state.get("vector_store_documents", [])
   stock_analysis_results = state.get("stock_analysis_results", [])
   rag_chain = get_rag_chain()
-
+  
   # fucntion to call rag chain invoke
   
   response = rag_chain.invoke(
@@ -133,11 +148,28 @@ def news_analysis(state: GraphState):
             "input": state["input"],
             "formatted_query": state["formatted_query"],
             "context": {
-              "stock_data": stock_analysis_results,
-              "news_data": vector_store_documents
+              "news_data": vector_store_documents,
+              "stock_data": stock_analysis_results
+              
             }
         }
   )
    
   
   return {"messages": [AIMessage(response)]}
+
+
+def get_question_type(state: GraphState):
+  print("Classifying Question...")
+  classify_chain = get_classify_question_chain()
+
+  response = classify_chain.invoke(
+      {
+          "question": state["formatted_query"]
+      }
+  )
+  question_category = response.category
+  
+  return {
+     "question_type" : question_category
+  }

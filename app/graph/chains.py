@@ -2,21 +2,17 @@ from typing import Literal
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_groq import ChatGroq
-# from langchain_google_genai import GoogleGenerativeAI
-# from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_google_genai import GoogleGenerativeAI
 
 def get_classify_question_chain():
 
   # llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
-  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
   class QuestionCategory(BaseModel):
 
     category: Literal[
         "stock_specific",
-        # "market_trend",
-        # "investment_strategy",
         "news_based",
         "comparison",
         "technical_analysis"
@@ -51,16 +47,15 @@ def get_classify_question_chain():
 
 def get_extract_context_chain():
 
-  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+  llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
   
   class Context(BaseModel):
     symbols : list[str] = Field(
         description="Stock symbols mentioned (in uppercase). Empty list if no symbols are found."
     )
-    period : str = Field(
+    period: Literal['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'] = Field(
         description="Time period for analysis. Empty string if no period is mentioned.",
-        examples=['1d', '5d', '1mo', '3mo', '6mo',
-                  '1y', '2y', '5y', '10y', 'ytd', 'max']
+       
     )
     metrics : list[str] = Field(
         description="Requested metrics. Empty string if no metrics are requested."
@@ -94,18 +89,20 @@ def get_extract_context_chain():
 
 def get_handle_stock_analysis_chain():
 
-  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.5)
+  # llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2)
   llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
                            temperature=0.2)
   prompt = PromptTemplate(
       template="""
     You are a financial data analyst expert.
-    Based on the user's question: {question}
+    Based on the refined user's question: {formulated_question}
     Provide a detailed and insightful answer, utilizing the following context:
     context :  {data}
     Use a professional tone and use tables if applicable to present information clearly.
+
+    Original Question (for reference): {original_question}
     """,
-    input_variables=["question", "data"]
+      input_variables=["original_question", "data", "formulated_question"]
   )
 
   return prompt | llm | StrOutputParser()
@@ -118,8 +115,8 @@ def get_formulated_query_chain():
   You are an AI assistant that can formulate a standalone question 
   when given chat history, chat summary and the latest user question 
   which might reference context in the chat history and summary.
-  Formulate a standalone question 
-  which can be understood without the chat history. Do NOT answer the question, 
+  Formulate a standalone question which can be understood without the chat history.
+  Do NOT answer the question, 
   just reformulate it if needed and otherwise return it as is.
   Output only the standalone question or the original if no reformulation is needed.
   """
@@ -142,13 +139,13 @@ def get_formulated_query_chain():
 def get_rag_chain():
 
   system = """
-    You are an financial domain expert for question-answering tasks. 
+    You are a financial domain expert for question-answering tasks. 
     Use the following pieces of retrieved context to answer the question.
-    The Context may include stock information and related news information. 
+    The Context may include related news and information stock information. 
     If you don't know the answer, just say that you don't know. 
     Please attach the URL of the relevant news articles or sources to your answer. 
     If the original user query is not clear, use the formulated query to answer the question. 
-    Give answers based on the context only.
+   
     
     When providing the answer:
     - First, answer the question.
@@ -166,9 +163,9 @@ def get_rag_chain():
       ]
   )
 
-  # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
-  llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
-                                 temperature=0.5,)
+  llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.2)
+  # llm = GoogleGenerativeAI(model="gemini-1.5-flash-latest",
+  #                                temperature=0.2,)
 
   rag_chain = rag_prompt | llm | StrOutputParser()
   return rag_chain
