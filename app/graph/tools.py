@@ -37,7 +37,7 @@ def retrieve_multi_stocks_data(state: GraphState):
     symbols = state["context"]["symbols"]
     results = {}
 
-    if not symbols or len(symbols) < 2:
+    if (state["question_type"] == "comparison") and (not symbols or len(symbols) < 2 ):
         raise InsufficientStockSymbolsError()
 
     period = state["context"].get("period", "1mo")

@@ -17,8 +17,6 @@ from langchain_core.documents import Document
 # Define question types
 QuestionType = Literal[
     "stock_specific",
-    "market_trend",
-    "investment_strategy",
     "news_based",
     "comparison",
     "technical_analysis"
@@ -29,7 +27,7 @@ QuestionType = Literal[
 class GraphState(TypedDict):
     input : str
     messages: Annotated[Sequence[BaseMessage], add_messages]
-    # question_type: QuestionType
+    question_type: QuestionType
     # stocks: Sequence[str]
     analysis_results: Dict
     context: Dict
